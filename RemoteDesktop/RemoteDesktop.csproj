@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+	  <UseWindowsForms>true</UseWindowsForms>
+	  <TargetFramework>net6.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.0-preview.3.22175.4" />
+    <PackageReference Include="System.Drawing.Common" Version="7.0.0-preview.3.22175.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OpenH264\OpenH264.csproj" />
+    <ProjectReference Include="..\Yggdrasil.Api\Yggdrasil.Api.csproj" />
+  </ItemGroup>
+
+</Project>

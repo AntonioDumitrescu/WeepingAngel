@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Yggdrasil.Api\Yggdrasil.Api.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ImGui.NET.Docking" Version="1.75.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.0-preview.3.22175.4" />
+  </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="..\CopyToServer\bin\$(Configuration)\net6.0\CopyToServer.exe &quot;bin\$(Configuration)\net6.0-windows\RemoteTerminal.dll:..\Merlin\bin\$(Configuration)\net6.0\plugins\RemoteTerminal.dll&quot;" />
+  </Target>
+
+</Project>

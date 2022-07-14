@@ -1,0 +1,3 @@
+﻿using EncryptionBenchmark;
+
+ThroughputTest.Test();
