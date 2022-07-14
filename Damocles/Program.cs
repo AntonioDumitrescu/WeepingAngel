@@ -7,6 +7,7 @@ using Serilog;
 using Serilog.Events;
 using Yggdrasil.Api.Client;
 using Yggdrasil.Api.Events.System;
+using Yggdrasil.Api.Networking;
 using Yggdrasil.Events;
 using Yggdrasil.Messages.ClientToServer;
 

@@ -14,10 +14,13 @@ internal sealed class GdiFrameSource : IFrameSource
         var bounds = Screen.GetBounds(Point.Empty);
 
         var provider = _pool.GetProvider(bounds.Size);
-
         using var g = Graphics.FromImage(provider.Bitmap);
         g.CopyFromScreen(Point.Empty, Point.Empty, bounds.Size);
 
         return provider;
+    }
+
+    public void Dispose()
+    {
     }
 }

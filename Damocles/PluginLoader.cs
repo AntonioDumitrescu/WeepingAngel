@@ -26,6 +26,20 @@ internal static class PluginLoader
         {
             Log.Information("Loading assembly {name} {version}", assemblyName.Name, assemblyName.Version);
 
+            try
+            {
+                var assembly = AssemblyLoadContext.Default.LoadFromAssemblyName(assemblyName);
+                if (assembly != null)
+                {
+                    Log.Information("Found within default context.");
+                    return assembly;
+                }
+            }
+            catch (Exception e)
+            {
+                // ignored
+            }
+
             if (assemblyName.Name == "Yggdrasil.Api") { return typeof(ServerPluginStartupBase).Assembly; }
 
             if (assemblyName.Name == null || !assemblyInfoLookup.TryGetValue(assemblyName.Name, out var inf))

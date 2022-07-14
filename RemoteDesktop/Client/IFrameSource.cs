@@ -2,7 +2,7 @@
 
 namespace RemoteDesktop.Client;
 
-internal interface IFrameSource
+internal interface IFrameSource : IDisposable
 {
     BitmapPool.BitmapProvider GetImage();
 }

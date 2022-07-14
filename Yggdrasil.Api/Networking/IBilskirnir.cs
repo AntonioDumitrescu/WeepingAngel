@@ -1,7 +1,6 @@
 ﻿using System.Net;
-using Yggdrasil.Api.Networking;
 
-namespace Yggdrasil.Api.Client;
+namespace Yggdrasil.Api.Networking;
 
 /// <summary>
 ///     Abstracted Bilskirnir client.

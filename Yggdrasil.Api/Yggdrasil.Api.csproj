@@ -9,6 +9,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="7.0.0-preview.3.22175.4" />
     <PackageReference Include="Veldrid.SDL2" Version="4.9.0-beta1" />
+    <PackageReference Include="Veldrid.StartupUtilities" Version="4.9.0-beta1" />
   </ItemGroup>
 
   <ItemGroup>

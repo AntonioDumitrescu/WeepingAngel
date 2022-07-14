@@ -1,7 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+	  <UseWindowsForms>true</UseWindowsForms>
+
+	  <TargetFramework>net6.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <OutputType>Exe</OutputType>
@@ -18,6 +20,7 @@
     <PackageReference Include="Serilog.Extensions.Logging" Version="3.1.1-dev-10301" />
     <PackageReference Include="Serilog.Sinks.Console" Version="4.0.2-dev-00890" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.1-dev-00947" />
+    <PackageReference Include="System.Drawing.Common" Version="7.0.0-preview.6.22324.4" />
     <PackageReference Include="Veldrid.StartupUtilities" Version="4.9.0-beta1" />
   </ItemGroup>
 

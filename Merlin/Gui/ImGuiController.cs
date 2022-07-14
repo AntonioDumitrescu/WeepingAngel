@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using ImGuiNET;
 using Veldrid;
 using Veldrid.Sdl2;
+using Rectangle = Veldrid.Rectangle;
 
 namespace Merlin.Gui
 {

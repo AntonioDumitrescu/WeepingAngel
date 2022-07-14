@@ -8,6 +8,8 @@ internal class OpenH264Encoder : IEncoder
 {
     public OpenH264Encoder(int bitRate, int maxBitRate, UsageType usageType, int idrInterval)
     {
+        InstallDll.EnsureInstalled();
+
         var encoder = new WelsSvcEncoder();
 
         var @params = new EncoderParamsExt
@@ -61,5 +63,10 @@ internal class OpenH264Encoder : IEncoder
         results = success ? list.ToArray() : Array.Empty<byte[]>();
 
         return success;
+    }
+
+    public void Dispose()
+    {
+        _encoder.Dispose();
     }
 }

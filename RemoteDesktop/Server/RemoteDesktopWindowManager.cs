@@ -1,20 +1,23 @@
-﻿using System.Collections.Concurrent;
-using System.Diagnostics;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using Yggdrasil.Api.Events.Server.Gui.Render;
 using Yggdrasil.Api.Events.System;
 using Yggdrasil.Api.Server;
 
-namespace RemoteTerminal.Server;
+namespace RemoteDesktop.Server;
 
-public sealed class TerminalWindowManager : IEventReceiver
+public sealed class RemoteDesktopWindowManager : IEventReceiver
 {
-    private readonly ILogger<TerminalWindowManager> _logger;
+    private readonly ILogger<RemoteDesktopWindowManager> _logger;
     private readonly IServiceProvider _serviceProvider;
-    private readonly ConcurrentDictionary<IRemoteClient, TerminalWindow> _windows = new();
+    private readonly ConcurrentDictionary<IRemoteClient, RemoteDesktopWindow> _windows = new();
 
-    public TerminalWindowManager(ILogger<TerminalWindowManager> logger, IServiceProvider serviceProvider, IEventManager eventManager)
+    public RemoteDesktopWindowManager(
+        ILogger<RemoteDesktopWindowManager> logger, 
+        IServiceProvider serviceProvider,
+        IEventManager eventManager)
     {
         _logger = logger;
         _serviceProvider = serviceProvider;
@@ -25,11 +28,11 @@ public sealed class TerminalWindowManager : IEventReceiver
     {
         if (_windows.ContainsKey(client))
         {
-            _logger.LogError("Remote terminal already opened!");
+            _logger.LogError("Remote desktop already opened!");
             return;
         }
 
-        var instance = ActivatorUtilities.CreateInstance<TerminalWindow>(_serviceProvider, client);
+        var instance = ActivatorUtilities.CreateInstance<RemoteDesktopWindow>(_serviceProvider, client);
 
         _logger.LogInformation("Registering window.");
 

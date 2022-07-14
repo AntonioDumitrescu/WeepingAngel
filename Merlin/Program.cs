@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Serilog;
 using Serilog.Events;
 using Yggdrasil.Api.Events.System;
+using Yggdrasil.Api.Server;
 using Yggdrasil.Events;
 
 namespace Merlin;
@@ -56,7 +57,9 @@ internal static class Program
                 services.AddSingleton<ClientManager>();
                 services.AddHostedService<Server>();
 
-                services.AddHostedService<MainWindow>();
+                services.AddSingleton<MainWindow>();
+                services.AddSingleton<IServerWindow>(sp => sp.GetRequiredService<MainWindow>());
+                services.AddHostedService(sp => sp.GetRequiredService<MainWindow>());
             })
             .UseSerilog()
             .UseConsoleLifetime()

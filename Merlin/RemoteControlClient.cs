@@ -1,5 +1,6 @@
 ﻿using Bilskirnir;
 using Yggdrasil.Api.Client;
+using Yggdrasil.Api.Networking;
 using Yggdrasil.Api.Server;
 using Yggdrasil.Messages.ClientToServer;
 

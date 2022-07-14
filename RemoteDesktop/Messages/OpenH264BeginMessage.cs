@@ -4,21 +4,21 @@ using Yggdrasil.Api.Networking;
 
 namespace RemoteDesktop.Messages;
 
-internal sealed class OpenH264BeginMessage : IMessage 
+internal sealed class OpenH264BeginMessage : IMessage
 {
-    public int TargetWidth { get; private set; }
+    public int TargetWidth { get; set; } = 1280;
 
-    public int TargetHeight { get; private set; }
+    public int TargetHeight { get; set; } = 720;
 
-    public int TargetFps { get; private set; }
+    public int TargetFps { get; set; } = 30;
 
-    public int TargetBitRate { get; private set; }
+    public int TargetBitRate { get; set; } = 5000;
 
-    public int MaxBitRate { get; private set; }
+    public int MaxBitRate { get; set; } = 5000;
 
-    public int IdrInterval { get; private set; }
+    public int IdrInterval { get; set; } = 2;
 
-    public UsageType UsageType { get; private set; }
+    public UsageType UsageType { get; set; } = UsageType.ScreenContentRealTime;
 
     public void Serialize(IPacketWriter writer)
     {

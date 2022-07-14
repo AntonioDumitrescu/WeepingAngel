@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Drawing.Imaging;
 
 namespace RemoteDesktop;
 
@@ -8,7 +9,7 @@ internal sealed class BitmapPool
 
     public void Return(Bitmap bitmap)
     {
-        if (!_pools.TryGetValue(bitmap.Size, out var pool))
+        if (!_pools.TryGetValue(new Size(bitmap.Width, bitmap.Height), out var pool))
         {
             throw new KeyNotFoundException("Could not find pool.");
         }
@@ -19,8 +20,7 @@ internal sealed class BitmapPool
     public Bitmap Get(Size size)
     {
         var pool = _pools.GetOrAdd(size, _ => new ConcurrentBag<Bitmap>());
-
-        return pool.TryTake(out var bmp) ? bmp : new Bitmap(size.Width, size.Height);
+        return pool.TryTake(out var bmp) ? bmp : new Bitmap(size.Width, size.Height, PixelFormat.Format32bppArgb);
     }
 
     public BitmapProvider GetProvider(Size size)
@@ -40,11 +40,6 @@ internal sealed class BitmapPool
             _source = source;
         }
 
-        ~BitmapProvider()
-        {
-            Cleanup();
-        }
-
         private void Cleanup()
         {
             _source.Return(Bitmap);
@@ -52,7 +47,6 @@ internal sealed class BitmapPool
 
         public void Dispose()
         {
-            GC.SuppressFinalize(this);
             Cleanup();
         }
     }

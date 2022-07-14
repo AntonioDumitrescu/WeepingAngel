@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="..\CopyToServer\bin\$(Configuration)\net6.0\CopyToServer.exe &quot;bin\$(Configuration)\net6.0-windows\RemoteDesktop.dll:..\Merlin\bin\$(Configuration)\net6.0-windows\plugins\RemoteDesktop.dll&quot;&#xD;&#xA;..\CopyToServer\bin\$(Configuration)\net6.0\CopyToServer.exe &quot;..\OpenH264\bin\$(Configuration)\net6.0\OpenH264.dll:..\Merlin\bin\$(Configuration)\net6.0-windows\libraries\OpenH264.dll&quot;&#xD;&#xA;" />
+    <Exec Command="..\CopyToServer\bin\$(Configuration)\net6.0\CopyToServer.exe &quot;bin\$(Configuration)\net6.0-windows\RemoteDesktop.dll:..\Merlin\bin\$(Configuration)\net6.0-windows\plugins\RemoteDesktop.dll&quot;&#xD;&#xA;..\CopyToServer\bin\$(Configuration)\net6.0\CopyToServer.exe &quot;..\OpenH264\bin\$(Configuration)\net6.0\OpenH264.dll:..\Merlin\bin\$(Configuration)\net6.0-windows\libraries\OpenH264.dll&quot;&#xD;&#xA;..\CopyToServer\bin\$(Configuration)\net6.0\CopyToServer.exe &quot;bin\$(Configuration)\net6.0-windows\System.Drawing.Common.dll:..\Merlin\bin\$(Configuration)\net6.0-windows\libraries\System.Drawing.Common.dll&quot;&#xD;&#xA;..\CopyToServer\bin\$(Configuration)\net6.0\CopyToServer.exe &quot;bin\$(Configuration)\net6.0-windows\System.Windows.Forms.dll:..\Merlin\bin\$(Configuration)\net6.0-windows\libraries\System.Windows.Forms.dll&quot;" />
   </Target>
 
 </Project>

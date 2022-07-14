@@ -2,7 +2,7 @@
 
 namespace RemoteDesktop.Client;
 
-internal interface IEncoder
+internal interface IEncoder : IDisposable
 {
     bool Encode(Bitmap image, out byte[][] results);
 }

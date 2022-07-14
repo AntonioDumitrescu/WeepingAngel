@@ -33,7 +33,15 @@ internal sealed class PluginLoaderService : IHostedService
             clientPluginInfo.Instance =
                 (ClientPluginBase)ActivatorUtilities.CreateInstance(_serviceProvider, clientPluginInfo.PluginType);
 
-            await clientPluginInfo.Instance.StartAsync();
+            try
+            {
+                await clientPluginInfo.Instance.StartAsync();
+            }
+            catch (Exception e)
+            {
+                _logger.LogCritical("Failed to start {name}: {ex}", clientPluginInfo.Name, e);
+                throw;
+            }
         }
 
         await _client.Send(new SetupComplete());

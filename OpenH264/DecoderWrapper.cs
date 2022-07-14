@@ -41,7 +41,13 @@ public class DecoderWrapper : IDisposable
         return bufferInfo;
     }
 
-    public unsafe byte[] DecodeToRgb(byte* source, int length, out DecodingState result, out int width, out int height)
+    public unsafe void DecodeToRgb(
+        byte* source, 
+        int length, 
+        out DecodingState result, 
+        out int width, 
+        out int height, 
+        Func<int, int, IntPtr> allocator)
     {
         var bufferInfo = DecodeToYuv(source, length, out result);
         width = bufferInfo.MemBuffer.Width;
@@ -49,7 +55,7 @@ public class DecoderWrapper : IDisposable
 
         if (result != DecodingState.DsErrorFree)
         {
-            return Array.Empty<byte>();
+            return;
         }
 
         var yPlane = (byte*)(bufferInfo.Destination[0].ToPointer());
@@ -61,26 +67,12 @@ public class DecoderWrapper : IDisposable
 
         if (width == 0 || height == 0)
         {
-            return Array.Empty<byte>();
+            return;
         }
+        
+        var rgb = allocator(width, height);
 
-        var rgb = new byte[width * height * 3];
-
-        fixed (byte* ptr = &rgb[0])
-        {
-            Yuv420PtoRgb(yPlane, uPlane, vPlane, width, height, yS, ptr);
-        }
-
-        return rgb;
-    }
-
-    public unsafe byte[] DecodeToRgb(ReadOnlySpan<byte> source, int length, out DecodingState result, out int width,
-        out int height)
-    {
-        fixed (byte* ptr = &source[0])
-        {
-            return DecodeToRgb(ptr, length, out result, out width, out height);
-        }
+        Yuv420PtoRgb(yPlane, uPlane, vPlane, width, height, yS, (byte*)rgb.ToPointer());
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]

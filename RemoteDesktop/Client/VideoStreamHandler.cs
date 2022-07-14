@@ -1,26 +1,24 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RemoteDesktop.Messages;
 using Yggdrasil.Api.Client;
 using Yggdrasil.Api.Networking;
-using Yggdrasil.Api.Server;
 
 namespace RemoteDesktop.Client;
 
-internal sealed class VideoStreamService : IHostedService, IMessageReceiver
+internal sealed class VideoStreamHandler : IMessageReceiver
 {
-    private readonly ILogger<VideoStreamService> _logger;
+    private readonly ILogger<VideoStreamHandler> _logger;
     private readonly IServiceProvider _serviceProvider;
-    private readonly IRemoteClient _client;
+    private readonly IBilskirnir _client;
     private readonly BitmapPool _bitmapPool;
 
     private VideoStream? _stream;
 
-    public VideoStreamService(
-        ILogger<VideoStreamService> logger, 
+    public VideoStreamHandler(
+        ILogger<VideoStreamHandler> logger, 
         IServiceProvider serviceProvider,
-        IRemoteClient client,
+        IBilskirnir client,
         BitmapPool bitmapPool)
     {
         _logger = logger;
@@ -29,34 +27,41 @@ internal sealed class VideoStreamService : IHostedService, IMessageReceiver
         _bitmapPool = bitmapPool;
     }
 
-    public async Task StartAsync(CancellationToken cancellationToken)
+    public void Start()
     {
-        _logger.LogInformation("Starting stream service.");
-
-
-    }
-
-    public async Task StopAsync(CancellationToken cancellationToken)
-    {
-
+        _logger.LogInformation("Setting up video stream handler.");
+        _client.AddReceiver(this);
     }
 
     public void RegisterHandlers(IHandlerRegister register)
     {
-        register.Register<OpenH264BeginMessage>(HandleOpenH264Message);
+        register.Register<OpenH264BeginMessage>(HandleOpenH264);
+        register.Register<StreamEndMessage>(HandleStreamEnd);
     }
 
-    private async ValueTask HandleOpenH264Message(OpenH264BeginMessage message)
+    private async ValueTask HandleStreamEnd(StreamEndMessage arg)
+    {
+        if (_stream == null)
+        {
+            _logger.LogCritical("Tried to close stream, but stream was null!");
+            return;
+        }
+
+        await _stream.Close();
+    }
+
+    private async ValueTask HandleOpenH264(OpenH264BeginMessage message)
     {
         _logger.LogInformation("Received OpenH264 message.");
 
         if (_stream != null)
         {
-            _logger.LogError("Already streaming!");
-            return;
+            _logger.LogCritical("Already streaming! Re-creating stream.");
+            await _stream.Close();
         }
 
         _logger.LogInformation("Creating frame source.");
+
         var frameSource = new GdiFrameSource(_bitmapPool);
 
         _logger.LogInformation("Creating encoder.");
@@ -77,6 +82,7 @@ internal sealed class VideoStreamService : IHostedService, IMessageReceiver
 
     public void OnClosed()
     {
-        
+        _logger.LogInformation("Closing video stream handler.");
+        _stream?.Close().RunSynchronously();
     }
 }

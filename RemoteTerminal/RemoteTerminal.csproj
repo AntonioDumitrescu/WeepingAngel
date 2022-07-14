@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="..\CopyToServer\bin\$(Configuration)\net6.0\CopyToServer.exe &quot;bin\$(Configuration)\net6.0-windows\RemoteTerminal.dll:..\Merlin\bin\$(Configuration)\net6.0\plugins\RemoteTerminal.dll&quot;" />
+    <Exec Command="..\CopyToServer\bin\$(Configuration)\net6.0\CopyToServer.exe &quot;bin\$(Configuration)\net6.0-windows\RemoteTerminal.dll:..\Merlin\bin\$(Configuration)\net6.0-windows\plugins\RemoteTerminal.dll&quot;" />
   </Target>
 
 </Project>

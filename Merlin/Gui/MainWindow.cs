@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-using System.Numerics;
-using System.Reflection;
+﻿using System.Numerics;
 using ImGuiNET;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -15,16 +13,40 @@ using Yggdrasil.Events;
 
 namespace Merlin.Gui;
 
-internal sealed class MainWindow : IHostedService
+internal sealed class MainWindow : IServerWindow, IHostedService
 {
     private readonly ILogger<MainWindow> _logger;
     private readonly EventManager _eventManager;
     private readonly ClientManager _clientManager;
     private readonly IHostApplicationLifetime _applicationLifetime;
 
-    private Sdl2Window _window;
-    private GraphicsDevice _graphicsDevice;
+    private Sdl2Window? _window;
+    private GraphicsDevice? _graphicsDevice;
     private Task? _renderTask;
+    private ImGuiController? _controller;
+
+    public GraphicsDevice GraphicsDevice
+    {
+        get
+        {
+            if (_graphicsDevice == null)
+            {
+                throw new NullReferenceException("Graphics device not initialized!");
+            }
+
+            return _graphicsDevice;
+        }
+    }
+
+    public IntPtr GetOrCreateImGuiBinding(ResourceFactory factory, Texture texture)
+    {
+        if (_controller == null)
+        {
+            throw new Exception("Controller not initialized!");
+        }
+
+        return _controller.GetOrCreateImGuiBinding(factory, texture);
+    }
 
     public MainWindow(ILogger<MainWindow> logger, EventManager eventManager, ClientManager clientManager, IHostApplicationLifetime applicationLifetime)
     {
@@ -80,6 +102,8 @@ internal sealed class MainWindow : IHostedService
         _logger.LogInformation("Creating ImGui renderer.");
 
         var controller = new ImGuiController(_graphicsDevice, _window, _graphicsDevice.MainSwapchain.Framebuffer.OutputDescription, _window.Width, _window.Height);
+        _controller = controller;
+        
         _logger.LogInformation("Configuring ImGui.");
         ImGui.GetIO().ConfigFlags |= ImGuiConfigFlags.DockingEnable;
 
@@ -302,7 +326,7 @@ internal sealed class MainWindow : IHostedService
     public async Task StopAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("Waiting to close window.");
-        _window.Close();
+        _window!.Close();
         await _renderTask!;
 
         _logger.LogInformation("Window closed.");
