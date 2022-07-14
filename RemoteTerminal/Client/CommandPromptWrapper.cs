@@ -1,9 +1,8 @@
 ﻿using System.Diagnostics;
-using System.Text;
 
 namespace RemoteTerminal.Client;
 
-internal class Terminal : IDisposable
+internal class CommandPromptWrapper : IDisposable
 {
     private readonly StreamWriter _standardInput;
     private readonly StreamReader _standardOutput;
@@ -11,7 +10,7 @@ internal class Terminal : IDisposable
     private readonly CancellationTokenSource _cts = new();
     private readonly Task _processingTask;
 
-    public Terminal()
+    public CommandPromptWrapper()
     {
         _cmdProcess = new Process();
         _cmdProcess.StartInfo.FileName = "cmd.exe";
@@ -66,7 +65,7 @@ internal class Terminal : IDisposable
         _cmdProcess.Dispose();
     }
 
-    ~Terminal()
+    ~CommandPromptWrapper()
     {
         if (!_disposed)
         {

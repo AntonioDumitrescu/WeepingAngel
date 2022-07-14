@@ -6,7 +6,7 @@ using Yggdrasil.Api.Setup;
 namespace RemoteTerminal.Server;
 
 [ServerPlugin(
-    "Remote Terminal",
+    "Remote CommandPromptWrapper",
     "greeper.remoteTerminal",
     "0",
     "Alioth Merak")]
@@ -25,7 +25,7 @@ public sealed class ServerPlugin : ServerPluginBase, IEventReceiver
     {
         if (@event.SelectedClient == null) return;
 
-        ImGui.Text("Remote Terminal");
+        ImGui.Text("Remote CommandPromptWrapper");
         ImGui.TreePush();
         {
             if (ImGui.Button("Open Remote Terminal"))

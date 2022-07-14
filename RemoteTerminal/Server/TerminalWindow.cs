@@ -16,13 +16,17 @@ namespace RemoteTerminal.Server;
 
 internal sealed class TerminalWindow : IMessageReceiver
 {
+    private const int MaxContent = 1024 * 64;
+
     private readonly ILogger<TerminalWindow> _logger;
     private readonly IRemoteClient _client;
     public event Action? OnRemove;
 
     private string _content = "[empty]";
     private readonly StringBuilder _sb = new();
-    private const int MaxContent = 1024 * 64;
+
+    private int _lastReadVersion;
+    private int _lastDisplayedVersion;
 
     private readonly object _renderSync = new();
     private readonly CancellationTokenSource _cts = new();
@@ -37,9 +41,8 @@ internal sealed class TerminalWindow : IMessageReceiver
        
         _ = Task.Run(async () =>
         {
-            _logger.LogInformation("Setting up.");
             await client.Connection.Send(new SetTerminalStateMessage(SetTerminalStateMessage.State.Open));
-            _logger.LogInformation("Sent setup textMessage.");
+            _logger.LogInformation("Sent terminal open message.");
         });
     }
 
@@ -51,23 +54,19 @@ internal sealed class TerminalWindow : IMessageReceiver
 
     private readonly byte[] _inputBuffer = new byte[1024];
 
-    private int lastVersion = 0;
-
     public void Render()
     {
         ImGui.SetNextWindowSize(new Vector2(100, 100), ImGuiCond.FirstUseEver);
 
-        if (ImGui.Begin($"Remote Terminal ({_client.Username} / {_client.Connection})"))
+        if (ImGui.Begin($"Remote Command Prompt ({_client.Username} / {_client.Connection})"))
         {
+            bool updateScroll;
+
             lock (_renderSync)
             {
-                if (lastVersion != _content.GetHashCode())
-                {
-                    lastVersion = _content.GetHashCode();
-                    Console.WriteLine($"new: {_content}");
-                }
-
-                ImGui.TextColored(new Vector4(0, 1, 0, 1), _content);
+                ImGui.TextUnformatted(_content);
+                updateScroll = _lastReadVersion != _lastDisplayedVersion;
+                _lastDisplayedVersion = _lastReadVersion;
             }
 
             if (_sendTask is { IsCompleted: false })
@@ -76,6 +75,13 @@ internal sealed class TerminalWindow : IMessageReceiver
             }
             else if (ImGui.InputText("command", _inputBuffer, (uint)_inputBuffer.Length, ImGuiInputTextFlags.EnterReturnsTrue))
             {
+                if (ImGui.IsWindowFocused(ImGuiFocusedFlags.RootWindow) && 
+                    !ImGui.IsAnyItemActive() &&
+                    !ImGui.IsMouseClicked(0))
+                {
+                    ImGui.SetKeyboardFocusHere(0);
+                }
+
                 var len = 0;
 
                 for (var index = 0; index < _inputBuffer.Length; index++)
@@ -87,7 +93,9 @@ internal sealed class TerminalWindow : IMessageReceiver
                     }
                 }
 
-                var txt = Encoding.UTF8.GetString(_inputBuffer.AsSpan(0, len));
+                var txt = Encoding.UTF8.GetString(
+                    _inputBuffer.AsSpan(0, len));
+                
                 Array.Clear(_inputBuffer);
 
                 if (!string.IsNullOrEmpty(txt))
@@ -109,7 +117,7 @@ internal sealed class TerminalWindow : IMessageReceiver
                 }
             }
 
-            if (ImGui.GetScrollY() >= ImGui.GetScrollMaxY())
+            if (updateScroll)
             {
                 ImGui.SetScrollHereY(1.0f);
             }
@@ -120,8 +128,6 @@ internal sealed class TerminalWindow : IMessageReceiver
 
     private ValueTask ReceiveText(TextMessage textMessage)
     {
-        Console.WriteLine($"Received {textMessage.Message.Length}");
-
         _sb.Append(textMessage.Message);
 
         var overflow = _sb.Length - MaxContent;
@@ -134,7 +140,7 @@ internal sealed class TerminalWindow : IMessageReceiver
         lock (_renderSync)
         {
             _content = _sb.ToString();
-            Console.WriteLine($"new content len: {_content.Length}");
+            _lastReadVersion++;
         }
 
         return ValueTask.CompletedTask;
@@ -142,7 +148,7 @@ internal sealed class TerminalWindow : IMessageReceiver
 
     public void OnClosed()
     {
-        _logger.LogInformation("Closing!");
+        _logger.LogInformation("Closing remote terminal.");
 
         try
         {
@@ -152,6 +158,7 @@ internal sealed class TerminalWindow : IMessageReceiver
         {
             // ignored
         }
+
         _cts.Cancel();
         OnRemove?.Invoke();
     }
