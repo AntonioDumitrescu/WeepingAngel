@@ -6,10 +6,6 @@ namespace RemoteDesktop.Messages;
 
 internal sealed class OpenH264BeginMessage : IMessage
 {
-    public int TargetWidth { get; set; } = 1280;
-
-    public int TargetHeight { get; set; } = 720;
-
     public int TargetFps { get; set; } = 30;
 
     public int TargetBitRate { get; set; } = 5000;
@@ -22,8 +18,6 @@ internal sealed class OpenH264BeginMessage : IMessage
 
     public void Serialize(IPacketWriter writer)
     {
-        writer.WriteInt(TargetWidth);
-        writer.WriteInt(TargetHeight);
         writer.WriteInt(TargetFps);
         writer.WriteInt(TargetBitRate);
         writer.WriteInt(MaxBitRate);
@@ -33,8 +27,6 @@ internal sealed class OpenH264BeginMessage : IMessage
 
     public void Deserialize(IPacketReader reader)
     {
-        TargetWidth = reader.ReadInt();
-        TargetHeight = reader.ReadInt();
         TargetFps = reader.ReadInt();
         TargetBitRate = reader.ReadInt();
         MaxBitRate = reader.ReadInt();

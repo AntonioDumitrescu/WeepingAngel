@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Buffers;
+using System.Runtime.CompilerServices;
 using OpenH264.Intermediaries;
 
 namespace OpenH264;
@@ -41,21 +42,23 @@ public class DecoderWrapper : IDisposable
         return bufferInfo;
     }
 
-    public unsafe void DecodeToRgb(
+    public unsafe IMemoryOwner<byte>? DecodeToRgb(
         byte* source, 
         int length, 
-        out DecodingState result, 
+        out DecodingState result,
+        out bool success,
         out int width, 
-        out int height, 
-        Func<int, int, IntPtr> allocator)
+        out int height)
     {
+        success = false;
+
         var bufferInfo = DecodeToYuv(source, length, out result);
         width = bufferInfo.MemBuffer.Width;
         height = bufferInfo.MemBuffer.Height;
 
         if (result != DecodingState.DsErrorFree)
         {
-            return;
+            return default;
         }
 
         var yPlane = (byte*)(bufferInfo.Destination[0].ToPointer());
@@ -67,12 +70,17 @@ public class DecoderWrapper : IDisposable
 
         if (width == 0 || height == 0)
         {
-            return;
+            return default;
         }
-        
-        var rgb = allocator(width, height);
 
-        Yuv420PtoRgb(yPlane, uPlane, vPlane, width, height, yS, (byte*)rgb.ToPointer());
+        var rgb = MemoryPool<byte>.Shared.Rent(width * height * 3);
+        fixed (byte* ptr = &rgb.Memory.Span[0])
+        {
+            Yuv420PtoRgb(yPlane, uPlane, vPlane, width, height, yS, ptr);
+        }
+
+        success = true;
+        return rgb;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]

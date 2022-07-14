@@ -21,7 +21,7 @@ internal sealed class VideoStream
         Channel.CreateBounded<(BitmapPool.BitmapProvider image, DateTime time)>(
             new BoundedChannelOptions(CaptureOutputQueueSize)
             {
-                FullMode = BoundedChannelFullMode.DropOldest,
+                FullMode = BoundedChannelFullMode.Wait,
                 SingleReader = true,
                 SingleWriter = true
             });

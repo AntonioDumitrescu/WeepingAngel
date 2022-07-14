@@ -1,8 +1,12 @@
-﻿using System.Diagnostics;
+﻿using System.Buffers;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Drawing.Imaging;
 using ImGuiNET;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Threading.Channels;
+using Microsoft.Extensions.Logging;
 using OpenH264;
 using OpenH264.Intermediaries;
 using RemoteDesktop.Messages;
@@ -18,34 +22,72 @@ namespace RemoteDesktop.Server;
 
 internal class RemoteDesktopWindow : IMessageReceiver
 {
+    private readonly ILogger<RemoteDesktopWindow> _logger;
     private readonly IRemoteClient _client;
     private readonly IServerWindow _serverWindow;
     private readonly OpenH264BeginMessage _openMessage = new();
     private readonly DecoderWrapper _decoder = new();
     private readonly CancellationTokenSource _cts = new();
 
-    private Bitmap? _latest = null;
-    private readonly object _latestSync = new();
-    private int _lastShownImageCode;
+    #region Pipeline
+
+    private readonly Channel<List<byte[]>> _networkOutput =
+        Channel.CreateBounded<List<byte[]>>(
+            new BoundedChannelOptions(2)
+            {
+                SingleReader = true,
+                SingleWriter = true,
+                FullMode = BoundedChannelFullMode.Wait
+            });
+
+    private readonly Channel<(IMemoryOwner<byte>, int, int)> _decodingOutput =
+        Channel.CreateBounded<(IMemoryOwner<byte>, int, int)>(
+            new BoundedChannelOptions(2)
+            {
+                SingleReader = true,
+                SingleWriter = true,
+                FullMode = BoundedChannelFullMode.Wait
+            });
+
+    // do not change the bounded size of this one:
+    private readonly Channel<(IMemoryOwner<byte>, int, int)> _conversionOutput =
+        Channel.CreateBounded<(IMemoryOwner<byte>, int, int)>(
+            new BoundedChannelOptions(1)
+            {
+                SingleReader = true,
+                SingleWriter = true,
+                FullMode = BoundedChannelFullMode.Wait
+            });
+
+    #endregion
 
     private readonly GraphicsDevice _graphicsDevice;
     private Texture? _texture;
-    private IntPtr? _binding;
+    private IntPtr _binding = IntPtr.Zero;
 
+    private readonly Task _task;
 
-    public RemoteDesktopWindow(IRemoteClient client, IServerWindow serverWindow)
+    public RemoteDesktopWindow(ILogger<RemoteDesktopWindow> logger, IRemoteClient client, IServerWindow serverWindow)
     {
+        _logger = logger;
         _client = client;
         client.Connection.AddReceiver(this);
-        _serverWindow = serverWindow;
-        _graphicsDevice = serverWindow.GraphicsDevice;
 
+        _serverWindow = serverWindow;
+        
+        _graphicsDevice = serverWindow.GraphicsDevice;
+        
         client.Connection.Send(_openMessage);
+
+        var decodeTask = Task.Factory.StartNew(DecodeStreamAsync, TaskCreationOptions.LongRunning);
+        var convertTask = Task.Factory.StartNew(ConvertStreamAsync, TaskCreationOptions.LongRunning);
+
+        _task = Task.WhenAll(decodeTask, convertTask);
     }
 
     private void CreateTexture(int width, int height)
     {
-        Console.WriteLine($"Creating tex {width} {height}");
+        _logger.LogInformation("Creating {w}x{h} texture.", width, height);
 
         _texture = _graphicsDevice.ResourceFactory.CreateTexture(TextureDescription.Texture2D(
             (uint)width,
@@ -56,47 +98,31 @@ internal class RemoteDesktopWindow : IMessageReceiver
             TextureUsage.Sampled));
     }
 
-    private void UploadImage(Bitmap bmp)
+    private unsafe void UploadImage(ReadOnlySpan<byte> rgba, int width, int height)
     {
-        var data = bmp.LockBits(new Rectangle(0, 0, bmp.Width, bmp.Height), ImageLockMode.ReadOnly,
-            System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+        if (_texture == null || _texture.Width != width || _texture.Height != height)
+        {
+            _texture?.Dispose();
+            CreateTexture(width, height);
+        }
 
-        if (_texture != null)
+        fixed (void* pRgbaBytes = &rgba[0])
         {
-            if (_texture.Width != bmp.Width || _texture.Height != bmp.Height)
-            {
-                Console.WriteLine("Texture already exists");
-                _texture.Dispose();
-                CreateTexture(bmp.Width, bmp.Height);
-            }
+            _graphicsDevice.UpdateTexture(
+                _texture,
+                new IntPtr(pRgbaBytes),
+                (uint)(width * height * 4),
+                0,
+                0,
+                0,
+                (uint)width,
+                (uint)height,
+                1,
+                0,
+                0);
         }
-        else
-        {
-            Console.WriteLine("creating first texture");
-            CreateTexture(bmp.Width, bmp.Height);
-        }
-        
-        _graphicsDevice.UpdateTexture(
-            _texture, 
-            data.Scan0, 
-            (uint)(bmp.Width * bmp.Height *  4), 
-            0, 
-            0, 
-            0,
-            (uint)bmp.Width, 
-            (uint)bmp.Height,
-            1,
-            0,
-            0);
 
         _binding = _serverWindow.GetOrCreateImGuiBinding(_graphicsDevice.ResourceFactory, _texture!);
-
-        Console.WriteLine("uploaded tex");
-
-
-        bmp.UnlockBits(data);
-        bmp.Save("c:\\users\\fnafm\\desktop\\img.png");
-        bmp.Dispose();
     }
 
     public void Render()
@@ -123,18 +149,21 @@ internal class RemoteDesktopWindow : IMessageReceiver
                 ImGui.Image(_binding!.Value, new Vector2(_texture.Width, _texture.Height));
             }*/
 
-            lock (_latestSync)
+            if (_conversionOutput.Reader.TryRead(out var item))
             {
-                if (_latest != null)
-                {
-                    if (_latest.GetHashCode() != _lastShownImageCode)
-                    {
-                        _lastShownImageCode = _latest.GetHashCode();
-                        UploadImage(_latest);
-                    }
-                    Console.WriteLine($"image: {_binding.Value}");
-                    ImGui.Image(_binding!.Value, new Vector2(_texture!.Width, _texture.Height));
-                }
+                var rgbaOwner = item.Item1;
+                var width = item.Item2;
+                var height = item.Item3;
+                
+                UploadImage(rgbaOwner.Memory.Span, width, height);
+                
+                rgbaOwner.Dispose();
+            }
+
+
+            if (_texture != null)
+            {
+                ImGui.Image(_binding, ImGui.GetWindowSize());
             }
         }
 
@@ -147,54 +176,151 @@ internal class RemoteDesktopWindow : IMessageReceiver
         register.Register<NalStreamMessage>(ReceiveStreamAsync);
     }
 
+    #region Pipeline
+
     private async ValueTask ReceiveStreamAsync(NalStreamMessage message)
     {
-        foreach (var messageNal in message.Nals)
+        await _networkOutput.Writer.WriteAsync(message.Nals);
+        Console.WriteLine("wrote nals");
+    }
+
+    private async Task DecodeStreamAsync()
+    {
+        while (!_cts.IsCancellationRequested)
         {
-            Bitmap? bmp = null;
-            BitmapData? data = null;
+            List<byte[]> nals;
 
-            unsafe
+            try
             {
-                fixed (byte* ptr = &messageNal[0])
-                {
-                    _decoder.DecodeToRgb(
-                        ptr,
-                        messageNal.Length,
-                        out var state,
-                        out _,
-                        out _,
-                        (w, h) =>
-                        {
-                            bmp = new Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
-                            data = bmp.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.WriteOnly,
-                                System.Drawing.Imaging.PixelFormat.Format24bppRgb);
-
-                            return data.Scan0;
-                        });
-
-                    if (state != DecodingState.DsErrorFree || bmp == null)
-                    {
-                        if (bmp != null)
-                        {
-                            bmp.UnlockBits(data!);
-                            bmp.Dispose();
-                        }
-
-                        continue;
-                    }
-                }
+                nals = await _networkOutput.Reader.ReadAsync(_cts.Token);
+                Console.WriteLine("Read nal list");
+            }
+            catch (OperationCanceledException)
+            {
+                return;
             }
 
-            bmp.UnlockBits(data!);
-
-            lock (_latestSync)
+            foreach (var nal in nals)
             {
-                _latest?.Dispose();
-                _latest = bmp;
+                if (TryDecodeNal(nal, out var memoryOwner, out var width, out var height))
+                {
+                    try
+                    {
+                        await _decodingOutput.Writer.WriteAsync((memoryOwner, width, height));
+                        Console.WriteLine("Wrote rgb");
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        return;
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("failed to decode");
+                    memoryOwner?.Dispose();
+                }
             }
         }
     }
+
+    private unsafe bool TryDecodeNal(ReadOnlySpan<byte> nal, [NotNullWhen(true)] out IMemoryOwner<byte>? result, out int width, out int height)
+    {
+        fixed (byte* pNalBytes = &nal[0])
+        {
+            result = _decoder.DecodeToRgb(
+                pNalBytes,
+                nal.Length,
+                out _,
+                out var success,
+                out width,
+                out height);
+
+            return success;
+        }
+    }
+    
+    private async Task ConvertStreamAsync()
+    {
+        while (!_cts.IsCancellationRequested)
+        {
+            IMemoryOwner<byte> rgbOwner;
+            int width;
+            int height;
+
+            try
+            {
+                (rgbOwner, width, height) = await _decodingOutput.Reader.ReadAsync(_cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
+            var rgbaOwner = MemoryPool<byte>.Shared.Rent(width * height * 4);
+
+            try
+            {
+                unsafe
+                {
+                    fixed (byte* pRgbBytes = &rgbOwner.Memory.Span[0])
+                    fixed (byte* pRgbaBytes = &rgbaOwner.Memory.Span[0])
+                    {
+                        var pRgb = (Rgb*)pRgbBytes;
+                        var pRgba = (Rgba*)pRgbaBytes;
+
+                        var pixels = width * height;
+
+                        for (var i = 0; i < pixels; i++)
+                        {
+                            pRgba->R = pRgb->R;
+                            pRgba->G = pRgb->G;
+                            pRgba->B = pRgb->B;
+                            pRgba->A = 0xFF;
+
+                            ++pRgb;
+                            ++pRgba;
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+        
+
+            rgbOwner.Dispose();
+
+            try
+            {
+                await _conversionOutput.Writer.WriteAsync((rgbaOwner, width, height));
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private readonly ref struct Rgb
+    {
+        public readonly byte R;
+        public readonly byte G;
+        public readonly byte B;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public ref struct Rgba
+    {
+        public byte R;
+        public byte G;
+        public byte B;
+        public byte A;
+    }
+
+    #endregion
 
     private void Close()
     {
