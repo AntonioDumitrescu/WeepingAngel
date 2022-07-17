@@ -76,6 +76,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{A4F170FB-942A-4BB1-BB58-11EFC2A509AA}"
 	ProjectSection(SolutionItems) = preProject
 		API.md = API.md
+		Network.md = Network.md
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{EE42945F-53CA-495D-AAFF-24F1446F2C37}"

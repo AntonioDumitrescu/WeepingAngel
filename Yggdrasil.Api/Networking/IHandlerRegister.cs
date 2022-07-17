@@ -1,6 +1,4 @@
-﻿using Yggdrasil.Api.Networking;
-
-namespace Yggdrasil.Api.Client;
+﻿namespace Yggdrasil.Api.Networking;
 
 public interface IHandlerRegister
 {

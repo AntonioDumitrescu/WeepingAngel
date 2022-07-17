@@ -34,7 +34,7 @@ public interface IBilskirnir
     /// <param name="message">The instance of the message class. It's <see cref="IMessage.Serialize"/> method will be called to serialize the data.</param>
     /// <param name="profiler">Measure overhead of this method.</param>
     /// <returns></returns>
-    /// <exception cref="Exception">An internal error occured.</exception>
+    /// <exception cref="Exception">An internal error occurred.</exception>
     ValueTask Send<T>(T message, Profiler? profiler = null) where T : IMessage;
 
     void Dispose();
