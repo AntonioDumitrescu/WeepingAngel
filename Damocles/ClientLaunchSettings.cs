@@ -2,16 +2,16 @@
 
 public sealed class ClientLaunchSettings
 {
-    public ClientLaunchSettings(int port, string @interface, string password)
+    public ClientLaunchSettings(int port, string address, string password)
     {
         Port = port;
-        Interface = @interface;
+        Address = address;
         Password = password;
     }
 
     public int Port { get; }
 
-    public string Interface { get; }
+    public string Address { get; }
 
     public string Password { get; }
 }

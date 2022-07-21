@@ -36,7 +36,7 @@ if (config == null)
 }
 
 var port = config.Port;
-var address = IPAddress.Parse(config.Interface);
+var address = IPAddress.Parse(config.Address);
 var password = config.Password;
 
 Log.Information("PORT: {0} ADDRESS: \"{1}\" PASSWORD: \"{2}\"", port, address, password);
