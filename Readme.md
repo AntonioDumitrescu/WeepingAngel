@@ -29,9 +29,11 @@ Evenimentele de randare și input sunt trimise la module printr-un sistem de eve
 
 ### Module incluse
 Modulele incluse momentan:
-	- Remote Terminal -> Command Prompt de la distanță
-	- Remote Desktop -> vizualizarea ecranului de la distanță
-		- Pentru codare video folosesc OpenH264 de la Cisco (proiect open-source) cu API de bindings și abstracție propriu (am ales să fac propriul API pentru că este mult mai puțină muncă decât sistemele grafice menționate mai sus).
+ - Remote Terminal
+	- Command Prompt de la distanță
+ - Remote Desktop
+	- Vizualizarea ecranului de la distanță
+	- Pentru codare video folosesc OpenH264 de la Cisco (proiect open-source) cu API de bindings și abstracție propriu (am ales să fac propriul API pentru că este mult mai puțină muncă decât sistemele grafice menționate mai sus).
 
 ### Teste
 Proiectul include teste pentru părțile critice din sistemul de comunicație, criptare și serializare.
