@@ -5,7 +5,7 @@ namespace OpenH264.Intermediaries;
 public struct EncoderParamsExt
 {
     public EncoderParamsBase BaseParams;
-    public int TemploralLayerNumber;
+    public int TemporalLayerNumber;
     public int SpatialLayerNumber;
     [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
     public SpatialLayerConfig[] SpatialLayers;

@@ -1,4 +1,5 @@
 ﻿using System.Buffers;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using OpenH264.Intermediaries;
 
@@ -75,7 +76,7 @@ public class DecoderWrapper : IDisposable
 
         var requiredSize = width * height * 3;
 
-        Console.WriteLine($"RENTING {requiredSize}");
+        Trace.Assert(requiredSize > 0);
 
         var rgb = MemoryPool<byte>.Shared.Rent(requiredSize);
         fixed (byte* ptr = &rgb.Memory.Span[0])

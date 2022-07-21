@@ -110,8 +110,6 @@ internal sealed class VideoStream
             {
                 var (frame, time) = await _captureOutput.Reader.ReadAsync(_cts.Token);
 
-                _logger.LogInformation("Overhead to encoder: {time:F} ms", (DateTime.Now - time).TotalMilliseconds);
-
                 var result = _encoder.Encode(frame.Bitmap, out var results);
                 frame.Dispose();
 
@@ -162,8 +160,6 @@ internal sealed class VideoStream
                 break;
             }
 
-            _logger.LogInformation("Pipeline overhead: {ms} ms", Math.Round((DateTime.Now - captureTime).TotalMilliseconds, 2));
-            
             await _client.Send(new NalStreamMessage(new List<byte[]>(nals), captureTime));
         }
 

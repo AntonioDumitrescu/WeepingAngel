@@ -5,7 +5,7 @@ using OpenH264.Intermediaries;
 namespace RemoteDesktop.Client;
 
 internal class OpenH264Encoder : IEncoder
-{
+{ 
     public OpenH264Encoder(int bitRate, int maxBitRate, UsageType usageType, int idrInterval)
     {
         InstallDll.EnsureInstalled();
@@ -20,7 +20,7 @@ internal class OpenH264Encoder : IEncoder
                 PictureHeight = Screen.PrimaryScreen.Bounds.Height,
                 Bitrate = bitRate,
                 MaxFrameRate = 60,
-                UsageType = UsageType.ScreenContentRealTime,
+                UsageType = usageType,
                 RateControlMode = RateControlMode.Quality
             },
             MaxBitrate = maxBitRate,
@@ -29,7 +29,8 @@ internal class OpenH264Encoder : IEncoder
             bIsLosslessLink = true,
             SpatialLayers = new SpatialLayerConfig[4],
             MultipleThreadIdc = 0,
-            EnableAdaptiveQuant = true
+            EnableAdaptiveQuant = true,
+            IntraPeriod = (uint)idrInterval
         };
 
         @params.SpatialLayers[0] = new SpatialLayerConfig

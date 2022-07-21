@@ -1,7 +1,6 @@
 ﻿using System.Buffers;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Drawing.Imaging;
 using ImGuiNET;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -11,22 +10,22 @@ using OpenH264;
 using OpenH264.Intermediaries;
 using RemoteDesktop.Messages;
 using Veldrid;
-using Veldrid.OpenGLBinding;
-using Yggdrasil.Api.Client;
 using Yggdrasil.Api.Networking;
 using Yggdrasil.Api.Server;
-using DataGridViewBindingCompleteEventArgs = System.Windows.Forms.DataGridViewBindingCompleteEventArgs;
 using PixelFormat = Veldrid.PixelFormat;
-using Rectangle = System.Drawing.Rectangle;
 
 namespace RemoteDesktop.Server;
 
 internal class RemoteDesktopWindow : IMessageReceiver
 {
     private const int PresentOverheadAverageCount = 10;
+    private const int FpsAverageCount = 10;
 
     private static readonly UsageType[] UsageTypes = Enum.GetValues<UsageType>();
-    private static readonly string[] UsageTypeLabels = UsageTypes.Select(x => x.ToString()).ToArray();
+    private static readonly string[] UsageTypeLabels = UsageTypes
+        .Where(x=> x!= UsageType.CameraVideoNonRealTime)
+        .Select(x => x.ToString())
+        .ToArray();
 
     private readonly ILogger<RemoteDesktopWindow> _logger;
     private readonly IRemoteClient _client;
@@ -34,6 +33,9 @@ internal class RemoteDesktopWindow : IMessageReceiver
     private readonly OpenH264BeginMessage _openMessage = new();
     private readonly DecoderWrapper _decoder = new();
     private readonly CancellationTokenSource _cts = new();
+
+    private double _fps = 0; 
+    private DateTime _lastFrame = DateTime.Now;
 
     #region Pipeline
 
@@ -75,6 +77,7 @@ internal class RemoteDesktopWindow : IMessageReceiver
 
     private double _lastPresentedOverhead;
     private readonly List<double> _presentedOverheadValues = new();
+    private readonly List<double> _fpsValues = new();
 
     public RemoteDesktopWindow(ILogger<RemoteDesktopWindow> logger, IRemoteClient client, IServerWindow serverWindow)
     {
@@ -115,8 +118,6 @@ internal class RemoteDesktopWindow : IMessageReceiver
             CreateTexture(width, height);
         }
         
-        Console.WriteLine($"Uploading {bgra.Length} span");
-
         fixed (void* pBgraBytes = &bgra[0])
         {
             _graphicsDevice.UpdateTexture(
@@ -151,24 +152,6 @@ internal class RemoteDesktopWindow : IMessageReceiver
 
         ImGui.Begin($"Remote Desktop ({_client.Username} / {_client.Connection})");
         {
-            /*var targetFps = _openMessage.TargetFps;
-            var targetBitRate = _openMessage.TargetBitRate;
-            var maxBitRate = _openMessage.MaxBitRate;
-            var idrInterval = _openMessage.IdrInterval;
-
-            
-            ImGui.SliderInt("FPS", ref targetFps, 1, 60);
-            ImGui.SliderInt("Target Bit Rate", ref targetBitRate, 500, 10000);
-            ImGui.SliderInt("Max Bit Rate", ref maxBitRate, 500, 10000);
-            ImGui.SliderInt("IDR Interval", ref idrInterval, 1, 4);
-            */
-
-
-            /*if (_texture != null)
-            {
-                ImGui.Image(_binding!.Value, new Vector2(_texture.Width, _texture.Height));
-            }*/
-
             if (_conversionOutput.Reader.TryRead(out var item))
             {
                 var rgbaOwner = item.Item1;
@@ -183,10 +166,18 @@ internal class RemoteDesktopWindow : IMessageReceiver
                 _lastPresentedOverhead = (DateTime.Now - time).TotalMilliseconds;
 
                 _presentedOverheadValues.Add(_lastPresentedOverhead);
-
                 while (_presentedOverheadValues.Count > PresentOverheadAverageCount)
                 {
                     _presentedOverheadValues.RemoveAt(0);
+                }
+
+                var dt = (DateTime.Now - _lastFrame).TotalSeconds;
+                _lastFrame = DateTime.Now;
+                _fps = 1 / dt;
+                _fpsValues.Add(_fps);
+                while (_fpsValues.Count > FpsAverageCount)
+                {
+                    _fpsValues.RemoveAt(0);
                 }
             }
 
@@ -260,6 +251,9 @@ internal class RemoteDesktopWindow : IMessageReceiver
             ImGui.Text($"Last presented overhead: {_lastPresentedOverhead:F} ms");
             ImGui.Text($"Presented overhead average (last {PresentOverheadAverageCount} values): " +
                        $"{_presentedOverheadValues.Sum() / _presentedOverheadValues.Count:F}");
+            ImGui.Text($"FPS: {_fps:F}");
+            ImGui.Text($"FPS average (last {FpsAverageCount} values): " +
+                       $"{_fpsValues.Sum() / _fpsValues.Count:F}");
         }
 
         ImGui.End();
@@ -358,8 +352,11 @@ internal class RemoteDesktopWindow : IMessageReceiver
                 return;
             }
 
-            Console.WriteLine($"bgra renting {width * height * 4}");
-            var bgraOwner = MemoryPool<byte>.Shared.Rent(width * height * 4);
+            var requiredLength = width * height * 4;
+
+            Trace.Assert(requiredLength > 0);
+
+            var bgraOwner = MemoryPool<byte>.Shared.Rent(requiredLength);
 
             try
             {
