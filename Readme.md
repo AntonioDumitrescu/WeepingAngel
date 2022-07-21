@@ -2,6 +2,10 @@
 
 ![Demo](https://github.com/AntonioDumitrescu/WeepingAngel/blob/master/demo0.png?raw=true)
 
+## Setup
+
+Pentru a folosi programul, citeste [documentatia](https://github.com/AntonioDumitrescu/WeepingAngel/blob/master/Setup.md).
+
 ## Descriere tehnica
 
 ### Comunicatii
