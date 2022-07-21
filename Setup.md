@@ -24,3 +24,9 @@ Configurația clientului conține:
 	 - Adresa de conectare la server. Pentru o rețea locală, aceasta este adresa locală a serverului. Dacă clientul se conectează prin internet, aceasta trebuie să fie adresa de pe WAN a serverului.
  - Password
 	 - Trebuie sa fie exact ca în configurația serverului.
+ - Startup
+	 - Indică dacă programul va fi pornit automat, când pornește calculatorul
+ - DirectoryHidden
+	 - Indică dacă directorul unde se află clientul va fi ascuns
+ - HideConsole
+	 - Indică dacă fereastra consolei va fi ascunsă

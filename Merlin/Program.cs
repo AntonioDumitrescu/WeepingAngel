@@ -35,6 +35,7 @@ internal static class Program
             var defaultConfig = new ServerLaunchSettings("0.0.0.0", 6666, "password");
             File.WriteAllText(ConfigPath, JsonSerializer.Serialize(defaultConfig));
             Log.Fatal("Not configured. Please edit \"{0}\"", ConfigPath);
+            Thread.Sleep(3000);
             return;
         }
 
@@ -44,6 +45,14 @@ internal static class Program
         {
             Log.Fatal("Failed to deserialize config. Deleting...");
             File.Delete(ConfigPath);
+            Thread.Sleep(3000);
+            return;
+        }
+
+        if (config.Port is < 1 or > ushort.MaxValue)
+        {
+            Log.Fatal("Invalid port: {0}", config.Port);
+            Thread.Sleep(3000);
             return;
         }
 

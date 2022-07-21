@@ -20,9 +20,10 @@ const string configPath = "CONFIG.json";
 
 if (!File.Exists(configPath))
 {
-    var defaultConfig = new ClientLaunchSettings(6666, "0.0.0.0", "password");
+    var defaultConfig = new ClientLaunchSettings(6666, "127.0.0.1", "password", false, false, false);
     File.WriteAllText(configPath, JsonSerializer.Serialize(defaultConfig));
     Log.Fatal("Not configured. Please edit \"{0}\"", configPath);
+    Thread.Sleep(3000);
     return;
 }
 
@@ -32,6 +33,7 @@ if (config == null)
 {
     Log.Fatal("Failed to deserialize config. Deleting...");
     File.Delete(configPath);
+    Thread.Sleep(3000);
     return;
 }
 
@@ -39,17 +41,27 @@ var port = config.Port;
 var address = IPAddress.Parse(config.Address);
 var password = config.Password;
 
-Log.Information("PORT: {0} ADDRESS: \"{1}\" PASSWORD: \"{2}\"", port, address, password);
-
 if (port is < 1 or > ushort.MaxValue)
 {
     Log.Fatal("Invalid port: {0}", port);
+    Thread.Sleep(3000);
     return;
 }
+
+if (config.HideConsole)
+{
+    Installer.HideConsoleWindow();
+}
+
+Log.Information("PORT: {0} ADDRESS: \"{1}\" PASSWORD: \"{2}\"", port, address, password);
+Log.Information("USE STARTUP: {0}, HIDDEN DIRECTORY: {1}", config.Startup, config.DirectoryHidden);
+
+Installer.InstallFiles(config.Startup, config.DirectoryHidden);
 
 if (string.IsNullOrEmpty(password))
 {
     Log.Fatal("Password cannot be empty.");
+    Thread.Sleep(3000);
     return;
 }
 
