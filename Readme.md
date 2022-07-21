@@ -43,4 +43,4 @@ Solutia se compileaza cu [Visual Studio 2022](https://visualstudio.microsoft.com
 [Veldrid](https://github.com/mellinoe/veldrid/)
 
 ## API de plugins
-Pentru a crea module, citeste [documentatia](https://github.com/AntonioDumitrescu/WeepingAngel/blob/master/API.md) [TBA]
+Pentru a crea module, citeste [documentatia](https://github.com/AntonioDumitrescu/WeepingAngel/blob/master/API.md).
