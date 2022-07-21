@@ -1,6 +1,6 @@
 ﻿namespace Merlin;
 
-public sealed class ServerSettings
+public sealed class ServerLaunchSettings
 {
     public string Interface { get; }
         
@@ -8,7 +8,7 @@ public sealed class ServerSettings
 
     public string Password { get; }
 
-    public ServerSettings(string @interface, ushort port, string password)
+    public ServerLaunchSettings(string @interface, ushort port, string password)
     {
         Interface = @interface;
         Port = port;

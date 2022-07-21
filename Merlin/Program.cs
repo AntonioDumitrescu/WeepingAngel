@@ -1,4 +1,6 @@
-﻿using Merlin.Extensions;
+﻿using System.Net;
+using System.Text.Json;
+using Merlin.Extensions;
 using Merlin.Gui;
 using Merlin.Plugins;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +16,7 @@ namespace Merlin;
 internal static class Program
 {
     private static readonly ILogger Logger = Log.ForContext(typeof(Program));
+    private const string ConfigPath = "CONFIG.json";
 
     static void Main(string[] args)
     {
@@ -27,7 +30,26 @@ internal static class Program
             .WriteTo.Aggregator()
             .CreateLogger();
 
-        var host = CreateHostBuilder(args).Build();
+        if (!File.Exists(ConfigPath))
+        {
+            var defaultConfig = new ServerLaunchSettings("0.0.0.0", 6666, "password");
+            File.WriteAllText(ConfigPath, JsonSerializer.Serialize(defaultConfig));
+            Log.Fatal("Not configured. Please edit \"{0}\"", ConfigPath);
+            return;
+        }
+
+        var config = JsonSerializer.Deserialize<ServerLaunchSettings>(File.ReadAllText(ConfigPath));
+
+        if (config == null)
+        {
+            Log.Fatal("Failed to deserialize config. Deleting...");
+            File.Delete(ConfigPath);
+            return;
+        }
+
+        Log.Information("PORT: {0} ADDRESS: \"{1}\" PASSWORD: \"{2}\"", config.Port, config.Interface, config.Password);
+
+        var host = CreateHostBuilder(args, config).Build();
 
         try
         {
@@ -43,13 +65,13 @@ internal static class Program
         }
     }
 
-    private static IHostBuilder CreateHostBuilder(string[] args)
+    private static IHostBuilder CreateHostBuilder(string[] args, ServerLaunchSettings settings)
     {
         return Host.CreateDefaultBuilder(args)
             .UseContentRoot(Directory.GetCurrentDirectory())
             .ConfigureServices((host, services) =>
             {
-                services.AddSingleton(new ServerSettings("0.0.0.0", 666, ""));
+                services.AddSingleton(settings);
 
                 services.AddSingleton<EventManager>();
                 services.AddSingleton<IEventManager>(sp => sp.GetRequiredService<EventManager>());

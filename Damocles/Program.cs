@@ -39,7 +39,9 @@ var port = config.Port;
 var address = IPAddress.Parse(config.Interface);
 var password = config.Password;
 
-if (port < 1 || port > ushort.MaxValue)
+Log.Information("PORT: {0} ADDRESS: \"{1}\" PASSWORD: \"{2}\"", port, address, password);
+
+if (port is < 1 or > ushort.MaxValue)
 {
     Log.Fatal("Invalid port: {0}", port);
     return;

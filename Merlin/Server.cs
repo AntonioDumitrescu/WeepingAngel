@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Text;
 using Bilskirnir;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -11,19 +12,18 @@ internal sealed class Server : IHostedService
     private readonly ILogger<Server> _logger;
     private readonly IServiceProvider _serviceProvider;
     private readonly Bilskirnir.Server _server;
-    private Task _listenTask;
+    private Task? _listenTask;
 
-    public Server(ILogger<Server> logger, ServerSettings settings, IServiceProvider serviceProvider)
+    public Server(ILogger<Server> logger, ServerLaunchSettings launchSettings, IServiceProvider serviceProvider)
     {
         _logger = logger;
         _serviceProvider = serviceProvider;
 
-        //todo: use the password
         _server = new Bilskirnir.Server(
             new IPEndPoint(
-                IPAddress.Parse(settings.Interface), 
-                settings.Port), 
-            new byte[10]);
+                IPAddress.Parse(launchSettings.Interface), 
+                launchSettings.Port), 
+            Encoding.UTF8.GetBytes(launchSettings.Password));
 
         _server.NewClient += NewClient;
     }
@@ -46,7 +46,6 @@ internal sealed class Server : IHostedService
     {
         _logger.LogInformation("Stopping listener.");
         _server.Dispose();
-        _logger.LogInformation("Waiting for listener to exit...");
-        return _listenTask;
+        return _listenTask ?? Task.CompletedTask;
     }
 }
