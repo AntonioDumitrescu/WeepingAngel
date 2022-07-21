@@ -17,6 +17,14 @@ public class NetworkTransport : IDisposable
         _handler = handler;
         _receiveProfiler = receiveProfiler;
         Socket = socket;
+        try
+        {
+            socket.NoDelay = true;
+        }
+        catch
+        {
+            // ignored
+        }
         Setup();
         Connected = true;
     }

@@ -73,7 +73,11 @@ public class DecoderWrapper : IDisposable
             return default;
         }
 
-        var rgb = MemoryPool<byte>.Shared.Rent(width * height * 3);
+        var requiredSize = width * height * 3;
+
+        Console.WriteLine($"RENTING {requiredSize}");
+
+        var rgb = MemoryPool<byte>.Shared.Rent(requiredSize);
         fixed (byte* ptr = &rgb.Memory.Span[0])
         {
             Yuv420PtoRgb(yPlane, uPlane, vPlane, width, height, yS, ptr);

@@ -67,59 +67,81 @@ internal sealed class VideoStream
 
     private async Task CaptureAsync()
     {
-        _logger.LogInformation("Started capture thread.");
-
-        while (!_cts.IsCancellationRequested)
+        try
         {
-            var frameProvider = _frameSource.GetImage();
-            var dateCaptured = DateTime.Now;
+            _logger.LogInformation("Started capture thread.");
 
-            try
+            while (!_cts.IsCancellationRequested)
             {
-                await _captureOutput.Writer.WriteAsync((frameProvider, dateCaptured), _cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.LogInformation("Cancelled capturing.");
-                break;
-            }
-            catch(Exception ex)
-            {
-                _logger.LogCritical("Capture ex: {ex}", ex);
+                var frameProvider = _frameSource.GetImage();
+                var dateCaptured = DateTime.Now;
+
+                if (!_captureOutput.Writer.TryWrite((frameProvider, dateCaptured)))
+                {
+                    // drop frame
+                    frameProvider.Dispose();
+                    _logger.LogInformation("Dropping captured frame.");
+                }
+
+                try
+                {
+                    await _captureOutput.Writer.WaitToWriteAsync(_cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
             }
         }
-
-        _logger.LogInformation("Exited capture thread.");
+        finally
+        {
+            _frameSource.Dispose();
+            _logger.LogInformation("Exited capture thread.");
+        }
     }
 
     private async Task EncodeAsync()
     {
         _logger.LogInformation("Started encoder thread.");
 
-        while (!_cts.IsCancellationRequested)
+        try
         {
-            var (frame, time) = await _captureOutput.Reader.ReadAsync(_cts.Token);
-            var result = _encoder.Encode(frame.Bitmap, out var results);
-            frame.Dispose();
+            while (!_cts.IsCancellationRequested)
+            {
+                var (frame, time) = await _captureOutput.Reader.ReadAsync(_cts.Token);
 
-            if (!result)
-            {
-                _logger.LogInformation("Skipping frame.");
-                continue;
-            }
+                _logger.LogInformation("Overhead to encoder: {time:F} ms", (DateTime.Now - time).TotalMilliseconds);
 
-            try
-            {
-                await _encodingOutput.Writer.WriteAsync((results, time), _cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.LogInformation("Cancelled encoding.");
-                break;
+                var result = _encoder.Encode(frame.Bitmap, out var results);
+                frame.Dispose();
+
+                if (!result)
+                {
+                    _logger.LogInformation("Skipping encoding frame.");
+                    continue;
+                }
+
+                if (!_encodingOutput.Writer.TryWrite((results, time)))
+                {
+                    _logger.LogInformation("Dropped encoded frame.");
+                }
+
+                try
+                {
+                    await _encodingOutput.Writer.WaitToWriteAsync(_cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogInformation("Cancelled encoding.");
+                    break;
+                }
             }
         }
-
-        _logger.LogInformation("Exited encode thread.");
+        finally
+        {
+            _encoder.Dispose();
+            _logger.LogInformation("Exited encode thread.");
+        }
     }
 
     private async Task StreamAsync()
@@ -142,7 +164,7 @@ internal sealed class VideoStream
 
             _logger.LogInformation("Pipeline overhead: {ms} ms", Math.Round((DateTime.Now - captureTime).TotalMilliseconds, 2));
             
-            await _client.Send(new NalStreamMessage(new List<byte[]>(nals)));
+            await _client.Send(new NalStreamMessage(new List<byte[]>(nals), captureTime));
         }
 
         _logger.LogInformation("Exited streaming thread.");
@@ -157,12 +179,8 @@ internal sealed class VideoStream
 
         _logger.LogInformation("Closing stream.");
         _cts.Cancel();
-
         await _task!;
 
-        _logger.LogInformation("Closed all streaming threads. Releasing resources.");
-        _encoder.Dispose();
-        _frameSource.Dispose();
-        _cts.Dispose();
+        _logger.LogInformation("Closed all streaming threads.");
     }
 }

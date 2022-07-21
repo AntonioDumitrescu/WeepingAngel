@@ -56,7 +56,7 @@ internal sealed class VideoStreamHandler : IMessageReceiver
 
         if (_stream != null)
         {
-            _logger.LogCritical("Already streaming! Re-creating stream.");
+            _logger.LogInformation("Already streaming. Re-creating stream.");
             await _stream.Close();
         }
 
@@ -83,6 +83,6 @@ internal sealed class VideoStreamHandler : IMessageReceiver
     public void OnClosed()
     {
         _logger.LogInformation("Closing video stream handler.");
-        _stream?.Close().RunSynchronously();
+        _stream?.Close().Wait();
     }
 }

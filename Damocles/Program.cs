@@ -1,14 +1,13 @@
 ﻿using System.Net;
+using System.Text;
+using System.Text.Json;
 using Bilskirnir;
 using Damocles;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 using Serilog.Events;
-using Yggdrasil.Api.Client;
-using Yggdrasil.Api.Events.System;
 using Yggdrasil.Api.Networking;
-using Yggdrasil.Events;
 using Yggdrasil.Messages.ClientToServer;
 
 Log.Logger = new LoggerConfiguration()
@@ -17,15 +16,46 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
 
+const string configPath = "CONFIG.json";
 
-var port = 6666;
-var address = IPAddress.Parse("86.122.230.249");
-var aesKey = new byte[10];
+if (!File.Exists(configPath))
+{
+    var defaultConfig = new ClientLaunchSettings(6666, "0.0.0.0", "password");
+    File.WriteAllText(configPath, JsonSerializer.Serialize(defaultConfig));
+    Log.Fatal("Not configured. Please edit \"{0}\"", configPath);
+    return;
+}
+
+var config = JsonSerializer.Deserialize<ClientLaunchSettings>(File.ReadAllText(configPath));
+
+if (config == null)
+{
+    Log.Fatal("Failed to deserialize config. Deleting...");
+    File.Delete(configPath);
+    return;
+}
+
+var port = config.Port;
+var address = IPAddress.Parse(config.Interface);
+var password = config.Password;
+
+if (port < 1 || port > ushort.MaxValue)
+{
+    Log.Fatal("Invalid port: {0}", port);
+    return;
+}
+
+if (string.IsNullOrEmpty(password))
+{
+    Log.Fatal("Password cannot be empty.");
+    return;
+}
+
 var ep = new IPEndPoint(address, port);
 
 while (true)
 {
-    Client client = null;
+    Client? client = null;
 
     try
     {
@@ -34,7 +64,7 @@ while (true)
 
         try
         {
-            client = new Client(ep, aesKey);
+            client = new Client(ep, Encoding.UTF8.GetBytes(password));
         }
         catch (Exception e)
         {
@@ -106,7 +136,7 @@ while (true)
             .UseContentRoot(Directory.GetCurrentDirectory())
             .ConfigureServices((host, services) =>
             {
-                services.AddSingleton<Client>(client!);
+                services.AddSingleton(client);
                 services.AddSingleton<IBilskirnir>(sp => sp.GetRequiredService<Client>());
             })
             .UseSerilog()
@@ -134,16 +164,5 @@ while (true)
     catch (Exception e)
     {
         Log.Error(e.ToString());
-    }
-    finally
-    {
-        try
-        {
-            client?.Dispose();
-        }
-        catch
-        {
-            // ignored
-        }
     }
 }

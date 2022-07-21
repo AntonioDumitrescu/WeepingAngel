@@ -34,7 +34,7 @@ Proiectul include teste pentru partile critice din sistemul de comunicatie, crip
 
 ## Compilare
 
-Sokutia se compileaza cu [Visual Studio 2022](https://visualstudio.microsoft.com/vs/), cu suport pentru .NET 6. Pentru a utiliza modulele incluse, trebuie create folderele `plugins` si `libraries` in directorul serverului.
+Solutia se compileaza cu [Visual Studio 2022](https://visualstudio.microsoft.com/vs/), cu suport pentru .NET 6. Pentru a utiliza modulele incluse, trebuie create folderele `plugins` si `libraries` in directorul serverului.
 
 ## Biblioteci software
 [OpenH264](https://github.com/cisco/openh264)

@@ -7,14 +7,18 @@ internal struct NalStreamMessage : IMessage
 {
     public List<byte[]> Nals { get; private set; }
 
-    public NalStreamMessage(List<byte[]> nals)
+    public DateTime Time { get; set; }
+
+    public NalStreamMessage(List<byte[]> nals, DateTime time)
     {
         Nals = nals;
+        Time = time;
     }
 
     public NalStreamMessage()
     {
         Nals = new List<byte[]>();
+        Time = DateTime.MinValue;
     }
 
     public void Serialize(IPacketWriter writer)
@@ -25,6 +29,8 @@ internal struct NalStreamMessage : IMessage
         {
             writer.WriteBytes(nal);
         }
+
+        writer.WriteLong(Time.ToBinary());
     }
 
     public void Deserialize(IPacketReader reader)
@@ -35,5 +41,7 @@ internal struct NalStreamMessage : IMessage
         {
             Nals.Add(reader.ReadBytes());
         }
+
+        Time = DateTime.FromBinary(reader.ReadLong());
     }
 }

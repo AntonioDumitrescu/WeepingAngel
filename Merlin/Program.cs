@@ -49,7 +49,7 @@ internal static class Program
             .UseContentRoot(Directory.GetCurrentDirectory())
             .ConfigureServices((host, services) =>
             {
-                services.AddSingleton(new ServerSettings("0.0.0.0", 6666, ""));
+                services.AddSingleton(new ServerSettings("0.0.0.0", 666, ""));
 
                 services.AddSingleton<EventManager>();
                 services.AddSingleton<IEventManager>(sp => sp.GetRequiredService<EventManager>());
