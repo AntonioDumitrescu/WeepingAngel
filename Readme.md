@@ -1,5 +1,6 @@
 ﻿# Remote Control - Weeping Angel
 
+![Demo](https://github.com/AntonioDumitrescu/WeepingAngel/blob/master/demo0.png?raw=true)
 
 ## Descriere tehnica
 
