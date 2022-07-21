@@ -117,39 +117,19 @@ internal sealed class MainWindow : IServerWindow, IHostedService
 
         _logger.LogInformation("Starting render loop...");
             
-        // ui state:
-        var showGuiStatistics = false;
         var showLoggingWindow = true;
-        var showImGuiMetrics = false;
-
-        var totalFrames = 0L;
-
-        // used to calculate avg FPS
-        var startTime = DateTime.Now;
 
         // used to calculate delta time
         var deltaStart = DateTime.Now;
 
-        var profiler = new Profiler();
-
-        var pluginClientRenderPoints = new DataPointList<float>(1000);
-        var frameTimePoints = new DataPointList<float>(1000);
-        var pluginViewportRenderPoints = new DataPointList<float>(1000);
-
         var logText = "";
 
         var currentClient = 0;
+
         while (_window.Exists)
         {
-            totalFrames++;
-
-            profiler.PushSection("Pump Events");
             var snapshot = _window.PumpEvents();
-            var pumpEventsTicks = profiler.PopSectionRemove().ElapsedTicks;
-
-            profiler.PushSection("Pump Events (plugins)");
             await _eventManager.SendAsync(new InputPumpEvent(snapshot));
-            var pumpEventsPluginsTicks = profiler.PopSectionRemove().ElapsedTicks;
 
             if (!_window.Exists)
             {
@@ -160,117 +140,24 @@ internal sealed class MainWindow : IServerWindow, IHostedService
             deltaStart = DateTime.Now;
 
             #region Submit UI
-
+            
             ImGui.DockSpaceOverViewport();
-            var mainMenuRenderPluginsTicks = 0L;
-            var profilingMenuRenderPluginsTicks = 0L;
-            var loggingMenuRenderPluginsTicks = 0L;
-
-            if (ImGui.IsKeyDown((int)Key.AltLeft))
-            {
-                if (ImGui.BeginMainMenuBar())
-                {
-                    if (ImGui.SmallButton("Exit"))
-                    {
-                        _window.Close();
-                    }
-
-                    if (ImGui.BeginMenu("Profiling"))
-                    {
-                        ImGui.Checkbox("GUI Time", ref showGuiStatistics);
-                        ImGui.Checkbox("ImGui Metrics", ref showImGuiMetrics);
-                        profiler.PushSection("Profiling Menu");
-                        await _eventManager.SendAsync(new ProfilingMenuRenderEvent());
-                        profilingMenuRenderPluginsTicks = profiler.PopSectionRemove().ElapsedTicks;
-
-                        ImGui.EndMenu();
-                    }
-
-                    if (ImGui.BeginMenu("Logging"))
-                    {
-                        ImGui.Checkbox("Show Logs", ref showLoggingWindow);
-
-                        profiler.PushSection("Logging Menu");
-                        await _eventManager.SendAsync(new LoggingMenuRenderEvent());
-                        loggingMenuRenderPluginsTicks = profiler.PopSectionRemove().ElapsedTicks;
-
-                        ImGui.EndMenu();
-                    }
-
-                    profiler.PushSection("Main Menu");
-                    await _eventManager.SendAsync(new MainMenuRenderEvent());
-                    mainMenuRenderPluginsTicks = profiler.PopSectionRemove().ElapsedTicks;
-
-                    ImGui.EndMainMenuBar();
-                }
-
-            }
 
             var clients = _clientManager.Clients.ToArray();
             var labels = clients.Select(x => x.AuthenticationInformation.UserAccount).ToArray();
 
             ImGui.SetNextWindowSize(new Vector2(100, 100), ImGuiCond.FirstUseEver);
+          
             if (ImGui.Begin("Client List"))
             {
                 ImGui.ListBox("Clients", ref currentClient, labels, labels.Length);
 
-                profiler.PushSection("Client List (plugins)");
                 await _eventManager.SendAsync(new ClientListWindowRenderEvent(clients.Select(x => (IRemoteClient)x).ToArray(), clients.Length > currentClient ? clients[currentClient] : null));
             }
 
-            var clientListWindowRenderPluginsTicks = profiler.PopSectionRemove().ElapsedTicks;
-            pluginClientRenderPoints.AddPoint((float)Math.Round(clientListWindowRenderPluginsTicks / 10000f, 2));
-
             ImGui.End();
 
-            profiler.PushSection("Plugin Render Viewport");
             await _eventManager.SendAsync(new ViewportRenderEvent());
-            var viewportRenderPluginsTicks = profiler.PopSectionRemove().ElapsedTicks;
-            pluginViewportRenderPoints.AddPoint((float)Math.Round(viewportRenderPluginsTicks / 10000f, 2));
-
-            if (showGuiStatistics)
-            {
-                if (ImGui.Begin("FPS / FT"))
-                {
-                    ImGui.Text($"FPS: {ImGui.GetIO().Framerate:0.##}");
-                    ImGui.Text($"Frame Time : {1000f / ImGui.GetIO().Framerate:0.##}");
-                    frameTimePoints.AddPoint((float)Math.Round(1000f / ImGui.GetIO().Framerate, 2));
-
-                    ImGui.TreePush();
-                    {
-                        ImGui.PlotLines("Graph", ref frameTimePoints.AsArray()[0], frameTimePoints.Count - 10);
-                    }
-                    ImGui.TreePop();
-
-                    ImGui.Text($"Rendered frames: {totalFrames}");
-                    ImGui.Text($"Average FPS: {totalFrames / (DateTime.Now - startTime).TotalSeconds:0.##}");
-                    ImGui.Text("UI Operations");
-                    ImGui.TreePush("UI Operations");
-                    {
-                        ImGui.Text($"Client render (plugins): {clientListWindowRenderPluginsTicks / 10000f:0.##} ms");
-                        ImGui.TreePush();
-                        {
-                            ImGui.PlotLines("Graph", ref pluginClientRenderPoints.AsArray()[0], pluginClientRenderPoints.Count - 10);
-                        }
-                        ImGui.TreePop();
-
-                        ImGui.Text($"Viewport render (plugins): {viewportRenderPluginsTicks / 10000f:0.##}");
-                        ImGui.TreePush();
-                        {
-                            ImGui.PlotLines("Graph", ref pluginViewportRenderPoints.AsArray()[0], pluginViewportRenderPoints.Count - 10);
-                        }
-                        ImGui.TreePop();
-
-                        ImGui.Text($"Pump events: {pumpEventsTicks / 10000f:0.##} ms");
-                        ImGui.Text($"Pump events (plugins): {pumpEventsPluginsTicks / 10000f:0.##} ms");
-                        ImGui.Text($"Main menu (plugins): {mainMenuRenderPluginsTicks / 10000f:0.##} ms");
-                        ImGui.Text($"Profiling menu (plugins): {profilingMenuRenderPluginsTicks / 10000f:0.##} ms");
-                        ImGui.Text($"Logging menu (plugins): {loggingMenuRenderPluginsTicks / 10000f:0.##} ms");
-                    }
-                    ImGui.TreePop();
-                }
-                ImGui.End();
-            }
 
             if (showLoggingWindow)
             {
@@ -291,12 +178,8 @@ internal sealed class MainWindow : IServerWindow, IHostedService
                         ImGui.SetScrollHereY(1);
                     } 
                 }
-                ImGui.End();
-            }
 
-            if (showImGuiMetrics)
-            {
-                ImGui.ShowMetricsWindow();
+                ImGui.End();
             }
 
             #endregion

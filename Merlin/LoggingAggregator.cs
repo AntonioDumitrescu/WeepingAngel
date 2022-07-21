@@ -8,22 +8,34 @@ internal sealed class LoggingAggregator : ILogEventSink
 {
     private const int LogsSize = 1000;
 
-    private static readonly Lazy<LoggingAggregator> Lazy = new(() => new LoggingAggregator(),
-        LazyThreadSafetyMode.ExecutionAndPublication);
-
-    public static LoggingAggregator Instance => Lazy.Value;
-
-    private readonly DataPointList<string> _logs = new(LogsSize);
-
+    public static readonly LoggingAggregator Instance = new();
+    
     private LoggingAggregator() { }
 
     public IFormatProvider? FormatProvider { get; set; }
+
+    private int _version;
+    private int _gatheredVersion;
+
+    private readonly List<string> _logs = new();
+    private string[] _cache = Array.Empty<string>();
 
     public bool NeedUpdate
     {
         get
         {
-            lock (_logs) return _logs.NeedsUpdate;
+            lock (_logs)
+            {
+                var needed = _version != _gatheredVersion;
+                _gatheredVersion = _version;
+
+                if (needed)
+                {
+                    _cache = _logs.ToArray();
+                }
+
+                return needed;
+            }
         }
     }
 
@@ -31,7 +43,7 @@ internal sealed class LoggingAggregator : ILogEventSink
     {
         lock (_logs)
         {
-            return _logs.AsArray();
+            return _cache;
         }
     }
 
@@ -44,7 +56,13 @@ internal sealed class LoggingAggregator : ILogEventSink
 
         lock (_logs)
         {
-            _logs.AddPoint(@string);
+            _logs.Add(@string);
+            _version++;
+
+            while (_logs.Count > LogsSize)
+            {
+                _logs.RemoveAt(0);
+            }
         }
     }
 }
